@@ -1,29 +1,177 @@
 import * as React from 'react'
 import { NextPage } from 'next'
-import { Container } from '@material-ui/core'
-import { SubscribeHero } from 'components/SubscribeHero/SubscribeHero'
+import { MatchList } from '../components/MatchList/MatchList'
+import { Grid, Box, CircularProgress, Container, Stack, Snackbar, Button } from '@mui/material'
 import { secureLoader, useAPIPost } from 'lib/api'
-import useSWR from 'swr'
-import { SubscriptionList, EmailSubscription } from 'components/SubscriptionList'
+import { DateItem } from '../../interfaces/DateItem'
+import useSWR, { useSWRConfig } from 'swr'
+import useSWRImmutable from 'swr/immutable'
+import MuiAlert, { AlertProps } from '@mui/material/Alert'
 
-const URL = '/api/subscriptions'
+const URL = '/api/esports'
 
-const IndexPage: NextPage = () => {
-  const subscribe = useAPIPost<void, { email: string }>(URL)
-  const { data, revalidate } = useSWR<EmailSubscription[]>(URL, secureLoader())
+export interface SubscribeHeroProps {
+  isFetching?: boolean
+  hasError?: boolean
+}
+
+interface FetchedData {
+  DateItems: DateItem[]
+}
+
+const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(props, ref) {
+  return <MuiAlert elevation={6} ref={ref} variant='filled' {...props} />
+})
+
+const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
+  const [shouldFetch, setShouldFetch] = React.useState(false)
+
+  // For snackbars
+  const [openSuccess, setOpenSuccess] = React.useState(false)
+  const [openFailure, setOpenFailure] = React.useState(false)
+  const [openFetch, setOpenFetch] = React.useState(false)
+  const [openPost, setOpenPost] = React.useState(false)
+
+  // For fetching
+  const saveData = useAPIPost<void, { dataItem: DateItem[] }>(URL)
+  const { data, error } = useSWR<FetchedData>(shouldFetch ? null : URL, secureLoader() )
+  // const { data, error } = useSWRImmutable<FetchedData>(shouldFetch ? null : URL, secureLoader())
+  const { mutate } = useSWRConfig()
 
   React.useEffect(() => {
-    if (subscribe.posted) {
-      revalidate()
-      subscribe.reset()
+    if (saveData.posted) {
+      setOpenSuccess(true)
+      if (openPost) {
+        setOpenPost(false)
+      }
+      saveData.reset()
     }
-  }, [subscribe.posted])
+    if (saveData.posting) {
+      if (openSuccess) {
+        setOpenPost(false)
+      }
+    }
+    if (saveData.error) {
+      console.error('error occurred', saveData.error)
+      saveData.reset()
+      setOpenFailure(true)
+    }
+    if (shouldFetch) {
+      setOpenFetch(true)
+      setShouldFetch(false)
+    }
+    mutate(URL)
+  }, [saveData.posted, shouldFetch, saveData.posting])
+
+  const handleClose = (event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return
+    }
+
+    setOpenSuccess(false)
+    setOpenFailure(false)
+    setOpenFetch(false)
+    setOpenPost(false)
+  }
+
+  if (error) return <div>failed to load</div>
+  if (!data) return <div>loading...</div>
 
   return (
-    <Container maxWidth='lg'>
-      <SubscribeHero onSubmit={email => subscribe.post({ email })} hasError={!!subscribe.error} />
-
-      <SubscriptionList subscriptions={data || []} />
+    <Container
+      sx={{
+        maxWidth: '95%',
+        height: '100%'
+      }}
+      disableGutters
+      maxWidth={false}
+    >
+      <Grid
+        sx={{
+          width: '100%',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center'
+        }}
+      >
+        <MatchList dateItems={data.DateItems || []} />
+        <Box display='flex' flexDirection='row' justifyContent='center'>
+          <Button
+            onClick={async () => {
+              setShouldFetch(true)
+            }}
+            variant='contained'
+            sx={[
+              {
+                marginTop: '25px',
+                maxWidth: '15%',
+                marginRigth: '15px',
+                border: '0.05px solid #66ff74'
+              },
+              {
+                '&:hover': {
+                  backgroundColor: '#151D15'
+                }
+              }
+            ]}
+            color='primary'
+            disabled={shouldFetch ? true : false}
+          >
+            Fetch New Data
+          </Button>
+          <Button
+            onClick={async () => {
+              saveData.post({ dataItem: data.DateItems })
+            }}
+            variant='contained'
+            sx={[
+              {
+                marginTop: '25px',
+                maxWidth: '15%',
+                marginLeft: '15px',
+                border: '0.05px solid #0895A0'
+              },
+              {
+                '&:hover': {
+                  backgroundColor: '#0A1929'
+                }
+              }
+            ]}
+            color='primary'
+          >
+            Update Database
+          </Button>
+        </Box>
+      </Grid>
+      <Snackbar open={openSuccess} autoHideDuration={6000} onClose={handleClose}>
+        <Alert onClose={handleClose} severity='success' sx={{ width: '100%' }}>
+          Data saved successfully! 👍
+        </Alert>
+      </Snackbar>
+      <Snackbar open={openFailure} autoHideDuration={6000} onClose={handleClose}>
+        <Alert onClose={handleClose} severity='error' sx={{ width: '100%' }}>
+          Could not save data!
+        </Alert>
+      </Snackbar>
+      <Snackbar open={openFetch} autoHideDuration={3000} onClose={handleClose}>
+        <Alert
+          onClose={handleClose}
+          severity='info'
+          sx={{ width: '100%', backgroundColor: '#000', border: '0.05px solid #66ff74' }}
+        >
+          Fetching new data...
+        </Alert>
+      </Snackbar>
+      <Snackbar open={openPost} autoHideDuration={3000} onClose={handleClose}>
+        <Alert
+          onClose={handleClose}
+          severity='info'
+          sx={{ width: '100%', backgroundColor: '#000', border: '0.05px solid #0895A0' }}
+        >
+          Updating database...
+        </Alert>
+      </Snackbar>
     </Container>
   )
 }

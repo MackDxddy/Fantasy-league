@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model esports_date_items {
+  id                Int             @id @default(autoincrement())
+  matchDate         String?
+  gamesPlayed       Int?
+  teamsParticipated Int?
+  organization      String?
+  updated           Int?
+  esports_match     esports_match[]
+
+  @@unique([matchDate, organization])
+}
+
+model esports_match {
+  matchID                    Int                          @id @default(autoincrement())
+  dateItemID                 Int?
+  matchDate                  String?
+  matchDay                   String?
+  matchWeek                  String?
+  teamA                      String?
+  teamB                      String?
+  matchLength                String?
+  teamAWin                   Int?
+  teamBWin                   Int?
+  esports_date_items         esports_date_items?          @relation(fields: [dateItemID], references: [id], onDelete: Cascade)
+  esports_player_match_stats esports_player_match_stats[]
+  esports_team_match_stats   esports_team_match_stats[]
+
+  @@unique([matchDay, matchWeek, teamA, teamB, matchLength])
+}
+
+model esports_player {
+  playerID                   Int                          @id @default(autoincrement())
+  playerName                 String?
+  teamID                     Int?
+  esports_teams              esports_teams?               @relation(fields: [teamID], references: [teamID])
+  esports_player_match_stats esports_player_match_stats[]
+}
+
+model esports_player_match_stats {
+  id             Int            @id @default(autoincrement())
+  matchID        Int
+  playerID       Int
+  playerName     String?
+  teamName       String?
+  role           String?
+  legend         String?
+  kills          Int?
+  assists        Int?
+  deaths         Int?
+  creepScore     Int?
+  playerScore    Decimal?
+  esports_match  esports_match  @relation(fields: [matchID], references: [matchID], onDelete: NoAction, onUpdate: NoAction)
+  esports_player esports_player @relation(fields: [playerID], references: [playerID], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model esports_team_match_stats {
+  id             Int           @id @default(autoincrement())
+  matchID        Int
+  teamID         Int
+  teamName       String?
+  teamKills      Int?
+  dragonKills    Int?
+  riftHeralds    Int?
+  turretKills    Int?
+  baronKills     Int?
+  inhibitorKills Int?
+  didWin         Int?
+  totalPoints    Decimal?
+  esports_match  esports_match @relation(fields: [matchID], references: [matchID], onDelete: NoAction, onUpdate: NoAction)
+  esports_teams  esports_teams @relation(fields: [teamID], references: [teamID], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model esports_teams {
+  teamID                   Int                        @id @default(autoincrement())
+  teamName                 String?
+  esports_player           esports_player[]
+  esports_team_match_stats esports_team_match_stats[]
+}
