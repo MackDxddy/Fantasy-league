@@ -19,8 +19,15 @@ import {
 } from 'lib/PrismaHelpers/create'
 import nc from 'next-connect'
 
-const matchLimit = 100,
-  playerLimit = matchLimit * 10
+const matchLimit = 80,
+  playerLimit = matchLimit * 10,
+  playerRoles = {
+    Top: 1,
+    Jungle: 2,
+    Mid: 3,
+    Bot: 4,
+    Support: 5
+  }
 
 interface TeamsArr extends Array<Team> {}
 interface TeamPlayersArr extends Array<TeamPlayer> {}
@@ -88,8 +95,8 @@ export default nc<NextApiRequest, NextApiResponse>({
         }
       ],
       limit: matchLimit,
-      // groupBy: ['MatchSchedule.MatchId']
-      orderBy: [{ field: 'ScoreboardGames.DateTime_UTC'}]
+      groupBy: ['MatchSchedule.MatchId'],
+      orderBy: [{ field: 'ScoreboardGames.DateTime_UTC' }]
     })
 
     const players = await cargo.query({
@@ -122,7 +129,7 @@ export default nc<NextApiRequest, NextApiResponse>({
         }
       ],
       limit: playerLimit,
-      orderBy: [{ field: 'ScoreboardGames.DateTime_UTC' }],
+      orderBy: [{ field: 'ScoreboardGames.DateTime_UTC' }]
     })
 
     /**
@@ -193,49 +200,6 @@ export default nc<NextApiRequest, NextApiResponse>({
                   currentMatch.matchWeek = match.Tab
                   currentMatch.matchLength = match.Gamelength
 
-                  // Set basic team A stats
-                  teamA.teamName = match.Team1 // SK
-                  teamA.teamKills = match.Team2Kills
-                  teamA.dragonKills = match.Team2Dragons
-                  teamA.riftHeralds = match.Team2RiftHeralds
-                  teamA.turretKills = match.Team2Towers
-                  teamA.baronKills = match.Team2Barons
-                  teamA.inhibitorKills = match.Team2Inhibitors
-                  teamA.didWin = match.Winner === 1 ? true : false
-                  let totalAPoints = await calculateTeamScore(
-                    match.Team2Kills,
-                    match.Team2Dragons,
-                    match.Team2RiftHeralds,
-                    match.Team2Towers,
-                    match.Team2Inhibitors,
-                    match.Team2Barons,
-                    teamA.didWin
-                  )
-
-                  teamA.totalPoints = totalAPoints
-                  // push to totalDateItemTeams
-                  // console.log('total team points for', match.Team1, 'is', totalPoints)
-                  // Set basic team B stats
-                  teamB.teamName = match.Team2 //Rogue
-                  teamB.teamKills = match.Team1Kills
-                  teamB.dragonKills = match.Team1Dragons
-                  teamB.riftHeralds = match.Team1RiftHeralds
-                  teamB.turretKills = match.Team1Towers
-                  teamB.baronKills = match.Team1Barons
-                  teamB.inhibitorKills = match.Team1Inhibitors
-                  teamB.didWin = match.Winner === 2 ? true : false
-                  let totalBPoints = await calculateTeamScore(
-                    match.Team1Kills,
-                    match.Team1Dragons,
-                    match.Team1RiftHeralds,
-                    match.Team1Towers,
-                    match.Team1Inhibitors,
-                    match.Team1Barons,
-                    teamB.didWin
-                  )
-
-                  teamB.totalPoints = totalBPoints
-
                   // Pulls player stats
                   await currPlayers
                     .reduce(async (a, player) => {
@@ -252,6 +216,8 @@ export default nc<NextApiRequest, NextApiResponse>({
                         player.Team === match.Team1
                       ) {
                         let teamAPlayer: TeamPlayer = <TeamPlayer>{}
+                        // Assign role position
+                        teamAPlayer.rolePosition = playerRoles[player.Role]
                         // Set team A player stats
                         teamAPlayer.teamName = player.Team
                         teamAPlayer.name = player.Link
@@ -278,6 +244,8 @@ export default nc<NextApiRequest, NextApiResponse>({
                         player.Team === match.Team2
                       ) {
                         let teamBPlayer: TeamPlayer = <TeamPlayer>{}
+                        // Assign role position
+                        teamBPlayer.rolePosition = playerRoles[player.Role]
                         // Set team A player stats
                         teamBPlayer.teamName = player.Team
                         teamBPlayer.name = player.Link
@@ -304,6 +272,8 @@ export default nc<NextApiRequest, NextApiResponse>({
                         player.Team === match.Team1
                       ) {
                         let teamAPlayer: TeamPlayer = <TeamPlayer>{}
+                        // Assign role position
+                        teamAPlayer.rolePosition = playerRoles[player.Role]
                         // Set player stats
                         teamAPlayer.name = player.Link
                         teamAPlayer.teamName = player.Team
@@ -330,6 +300,8 @@ export default nc<NextApiRequest, NextApiResponse>({
                         player.Team === match.Team2
                       ) {
                         let teamBPlayer: TeamPlayer = <TeamPlayer>{}
+                        // Assign role position
+                        teamBPlayer.rolePosition = playerRoles[player.Role]
                         // Set player stats
                         teamBPlayer.name = player.Link
                         teamBPlayer.teamName = player.Team
@@ -353,33 +325,129 @@ export default nc<NextApiRequest, NextApiResponse>({
                       }
                     }, Promise.resolve())
                     .then(() => {
-                      totalDITeams.push(teamA)
+                      // Push teamNames to array
                       totalDITeamNames.push(match.Team1)
-
-                      totalDITeams.push(teamB)
                       totalDITeamNames.push(match.Team2)
+
+                      // Sort by roles
+                      teamAPlayers = teamAPlayers.sort((a, b) => a.rolePosition - b.rolePosition)
+                      teamBPlayers = teamBPlayers.sort((a, b) => a.rolePosition - b.rolePosition)
+
                       // Add members to corresponding teams
                       teamA.teamPlayers = teamAPlayers
                       teamB.teamPlayers = teamBPlayers
 
-                      // Add teams to match object
-                      currentMatch.teamA = teamA
-                      currentMatch.teamB = teamB
-
-                      // Add what teams won to match object
-                      currentMatch.teamAWin = teamA.didWin
-                      currentMatch.teamBWin = teamB.didWin
-
-                      // Add team players to match object
-                      currentMatch.teamAPlayers = teamAPlayers
-                      currentMatch.teamBPlayers = teamBPlayers
-
-                      // Add current match to totalDateItemMatches
-                      totalDIMatches.push(currentMatch)
-
                       currentDateItem.utcDate = match.DateTime_UTC
                       currentDateItem.organization = match.OverviewPage
                     })
+
+                  if (teamAPlayers[0].name === match.Team2Players[0]) {
+                    // Set basic team A stats
+                    teamA.teamName = match.Team1 // SK
+                    teamA.teamKills = match.Team2Kills
+                    teamA.dragonKills = match.Team2Dragons
+                    teamA.riftHeralds = match.Team2RiftHeralds
+                    teamA.turretKills = match.Team2Towers
+                    teamA.baronKills = match.Team2Barons
+                    teamA.inhibitorKills = match.Team2Inhibitors
+                    teamA.didWin = match.Winner === 1 ? true : false
+                    let totalAPoints = await calculateTeamScore(
+                      match.Team2Kills,
+                      match.Team2Dragons,
+                      match.Team2RiftHeralds,
+                      match.Team2Towers,
+                      match.Team2Inhibitors,
+                      match.Team2Barons,
+                      teamA.didWin
+                    )
+
+                    teamA.totalPoints = totalAPoints
+
+                    // push to totalDateItemTeams
+                    // console.log('total team points for', match.Team1, 'is', totalPoints)
+                    // Set basic team B stats
+                    teamB.teamName = match.Team2 //Rogue
+                    teamB.teamKills = match.Team1Kills
+                    teamB.dragonKills = match.Team1Dragons
+                    teamB.riftHeralds = match.Team1RiftHeralds
+                    teamB.turretKills = match.Team1Towers
+                    teamB.baronKills = match.Team1Barons
+                    teamB.inhibitorKills = match.Team1Inhibitors
+                    teamB.didWin = match.Winner === 2 ? true : false
+                    let totalBPoints = await calculateTeamScore(
+                      match.Team1Kills,
+                      match.Team1Dragons,
+                      match.Team1RiftHeralds,
+                      match.Team1Towers,
+                      match.Team1Inhibitors,
+                      match.Team1Barons,
+                      teamB.didWin
+                    )
+
+                    teamB.totalPoints = totalBPoints
+                  }
+                  if (teamAPlayers[0].name === match.Team1Players[0]) {
+                    // Set basic team A stats
+                    teamA.teamName = match.Team1 //Rogue
+                    teamA.teamKills = match.Team1Kills
+                    teamA.dragonKills = match.Team1Dragons
+                    teamA.riftHeralds = match.Team1RiftHeralds
+                    teamA.turretKills = match.Team1Towers
+                    teamA.baronKills = match.Team1Barons
+                    teamA.inhibitorKills = match.Team1Inhibitors
+                    teamA.didWin = match.Winner === 1 ? true : false
+                    let totalAPoints = await calculateTeamScore(
+                      match.Team1Kills,
+                      match.Team1Dragons,
+                      match.Team1RiftHeralds,
+                      match.Team1Towers,
+                      match.Team1Inhibitors,
+                      match.Team1Barons,
+                      teamA.didWin
+                    )
+
+                    teamA.totalPoints = totalAPoints
+
+                    // Set basic team B stats
+                    teamB.teamName = match.Team2 //Rogue
+                    teamB.teamKills = match.Team2Kills
+                    teamB.dragonKills = match.Team2Dragons
+                    teamB.riftHeralds = match.Team2RiftHeralds
+                    teamB.turretKills = match.Team2Towers
+                    teamB.baronKills = match.Team2Barons
+                    teamB.inhibitorKills = match.Team2Inhibitors
+                    teamB.didWin = match.Winner === 2 ? true : false
+                    let totalBPoints = await calculateTeamScore(
+                      match.Team2Kills,
+                      match.Team2Dragons,
+                      match.Team2RiftHeralds,
+                      match.Team2Towers,
+                      match.Team2Inhibitors,
+                      match.Team2Barons,
+                      teamB.didWin
+                    )
+
+                    teamB.totalPoints = totalBPoints
+                  }
+
+                  // Add teams to match object
+                  currentMatch.teamA = teamA
+                  currentMatch.teamB = teamB
+
+                  // Add what teams won to match object
+                  currentMatch.teamAWin = teamA.didWin
+                  currentMatch.teamBWin = teamB.didWin
+
+                  // Add team players to match object
+                  currentMatch.teamAPlayers = teamAPlayers
+                  currentMatch.teamBPlayers = teamBPlayers
+
+                  // Add current match to totalDateItemMatches
+                  totalDIMatches.push(currentMatch)
+
+                  // Push teams to array
+                  totalDITeams.push(teamA)
+                  totalDITeams.push(teamB)
                 }
               })
             ).then(() => {

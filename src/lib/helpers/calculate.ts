@@ -17,7 +17,7 @@ const roundToTwo = (num: number): number => {
  * @param kills
  * @returns
  */
-const calcKillPts = async(kills: number): Promise<number> => {
+const calcKillPts = async (kills: number): Promise<number> => {
   return roundToTwo(kills * 3)
 }
 
@@ -27,7 +27,7 @@ const calcKillPts = async(kills: number): Promise<number> => {
  * @param assists
  * @returns
  */
-const calcAssistPts = async(assists: number): Promise<number> => {
+const calcAssistPts = async (assists: number): Promise<number> => {
   return roundToTwo(assists * 2)
 }
 
@@ -37,7 +37,7 @@ const calcAssistPts = async(assists: number): Promise<number> => {
  * @param deaths
  * @returns
  */
-const calcDeathPts = async(deaths: number): Promise<number> => {
+const calcDeathPts = async (deaths: number): Promise<number> => {
   return roundToTwo(deaths * 0.5)
 }
 
@@ -47,7 +47,7 @@ const calcDeathPts = async(deaths: number): Promise<number> => {
  * @param creepScore
  * @returns
  */
-const calcCreepScorePts = async(creepScore: number): Promise<number> => {
+const calcCreepScorePts = async (creepScore: number): Promise<number> => {
   return roundToTwo(creepScore * 0.02)
 }
 
@@ -59,7 +59,11 @@ const calcCreepScorePts = async(creepScore: number): Promise<number> => {
  * @param deaths
  * @returns
  */
-const calcKillAssistBns = async(kills: number, assists: number, deaths: number): Promise<number> => {
+const calcKillAssistBns = async (
+  kills: number,
+  assists: number,
+  deaths: number
+): Promise<number> => {
   if (roundToTwo((kills + assists) / deaths) >= 10) {
     return 2
   } else return 0
@@ -73,25 +77,35 @@ const calcKillAssistBns = async(kills: number, assists: number, deaths: number):
  * @param teamTotalKills
  * @returns
  */
-const calcParticipationPts = async (kills: number, assists: number, teamTotalKills: number): Promise<number>=> {
+const calcParticipationPts = async (
+  kills: number,
+  assists: number,
+  teamTotalKills: number
+): Promise<number> => {
   // return ((kills + assists) / Math.max(1, teamTotalKills)) * 100 * 0.25;
   if (roundToTwo(((kills + assists) / teamTotalKills) * 100 * 0.25) <= 25) {
     return roundToTwo(((kills + assists) / teamTotalKills) * 100 * 0.25)
   } else return 0
 }
 
+const calcFlawleess = async (deaths: number, playerScore: number): Promise<number> => {
+  if (deaths === 0) {
+    return (playerScore *= 1.2)
+  } else return playerScore
+}
+
 // Calculates player score
 /**
- * 
- * @param killPoints 
- * @param assistPoints 
- * @param creepScorePoints 
- * @param killAssistBonus 
- * @param participationPoints 
- * @param deathsPoints 
- * @returns 
+ *
+ * @param killPoints
+ * @param assistPoints
+ * @param creepScorePoints
+ * @param killAssistBonus
+ * @param participationPoints
+ * @param deathsPoints
+ * @returns
  */
-const addPlayerScore = async(
+const addPlayerScore = async (
   killPoints: number,
   assistPoints: number,
   creepScorePoints: number,
@@ -123,7 +137,7 @@ const addPlayerScore = async(
  * @param teamTotalKills
  * @returns
  */
-export async function calculatePlayerScore (
+export async function calculatePlayerScore(
   playerName: string,
   kills: number,
   assists: number,
@@ -146,9 +160,11 @@ export async function calculatePlayerScore (
     deathsPoints
   )
 
-  if (deaths === 0) {
-    playerScore *= 1.2
-  }
+  playerScore = await calcFlawleess(deaths, playerScore)
+
+  // if (deaths === 0) {
+  //   playerScore *= 1.2
+  // }
 
   return roundToTwo(playerScore)
 }

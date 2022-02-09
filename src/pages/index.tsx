@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { NextPage } from 'next'
 import { MatchList } from '../components/MatchList/MatchList'
-import { Grid, Box, CircularProgress, Container, Stack, Snackbar, Button } from '@mui/material'
+import { Grid, Box, Container, Snackbar, Button } from '@mui/material'
 import { secureLoader, useAPIPost } from 'lib/api'
 import { DateItem } from '../../interfaces/DateItem'
 import useSWR, { useSWRConfig } from 'swr'

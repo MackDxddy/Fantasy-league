@@ -1,4 +1,4 @@
-import { Collapse, Box, TableCell, TableRow } from '@mui/material'
+import { Collapse, Box, TableCell, TableRow, Container } from '@mui/material'
 import {
   DataGrid,
   GridColDef,
@@ -12,20 +12,12 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp'
 import { MatchDetails } from '../MatchDetails/MatchDetails'
 import { DateItem } from '../../../interfaces/DateItem'
 
-interface Column {
-  id: 'date' | 'gamesPlayed' | 'teamsParticipated' | 'organization'
-  label: string
-  minWidth?: number
-  align?: 'right'
-  format?: (value: number) => string
-}
-
 const columns: GridColDef[] = [
-  { field: 'id', headerName: ' ', minWidth: 100 },
-  { field: 'date', headerName: 'Date', minWidth: 270 },
-  { field: 'gamesPlayed', headerName: 'Games', minWidth: 350 },
-  { field: 'teamsParticipated', headerName: 'Teams', minWidth: 220 },
-  { field: 'organization', headerName: 'Organization', minWidth: 700 }
+  { field: 'id', headerName: ' ', minWidth: 100, width: 100 },
+  { field: 'date', headerName: 'Date', minWidth: 140, flex: 0.3 },
+  { field: 'gamesPlayed', headerName: 'Games', minWidth: 140, flex: 0.3 },
+  { field: 'teamsParticipated', headerName: 'Teams', minWidth: 140, flex: 0.3 },
+  { field: 'organization', headerName: 'Organization', minWidth: 230, flex: 1 }
 ]
 
 const Row = (props: { row: DateItem }) => {
@@ -40,10 +32,10 @@ const Row = (props: { row: DateItem }) => {
             {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </IconButton>
         </TableCell>
-        <TableCell sx={{ minWidth: '270px' }}>{row.date}</TableCell>
-        <TableCell sx={{ minWidth: '350px' }}>{row.gamesPlayed}</TableCell>
-        <TableCell sx={{ minWidth: '220px' }}>{row.teamsParticipated}</TableCell>
-        <TableCell sx={{ minWidth: '700px' }}>{row.organization}</TableCell>
+        <TableCell sx={{ minWidth: '140px', width: '260px' }}>{row.date}</TableCell>
+        <TableCell sx={{ minWidth: '140px', width: '270px' }}>{row.gamesPlayed}</TableCell>
+        <TableCell sx={{ minWidth: '140px', width: '260px' }}>{row.teamsParticipated}</TableCell>
+        <TableCell sx={{ minWidth: '230px', width: '640px' }}>{row.organization}</TableCell>
       </TableRow>
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
@@ -81,7 +73,7 @@ export const MatchList: React.FC<MatchListProps> = ({ dateItems }) => {
 
   if (dateItems) {
     return (
-      <div style={{ height: '86vh', width: '100%' }}>
+      <Container maxWidth='xl' style={{ height: '86vh' }} disableGutters>
         <DataGrid
           columns={columns}
           // rows={formattedRows}
@@ -112,10 +104,10 @@ export const MatchList: React.FC<MatchListProps> = ({ dateItems }) => {
                   outline: '1px solid #0895A0'
                 }
               }
-            },
+            }
           ]}
         />
-      </div>
+      </Container>
     )
   } else {
     return <div></div>

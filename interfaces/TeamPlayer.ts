@@ -4,6 +4,7 @@ export interface TeamPlayer {
   totalPoints?: number
   championName?: string
   role?: string
+  rolePosition?: number
   kills?: number
   assists?: number
   deaths?: number
