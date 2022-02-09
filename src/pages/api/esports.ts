@@ -19,7 +19,7 @@ import {
 } from 'lib/PrismaHelpers/create'
 import nc from 'next-connect'
 
-const matchLimit = 80,
+const matchLimit = 210,
   playerLimit = matchLimit * 10,
   playerRoles = {
     Top: 1,
