@@ -2,6 +2,7 @@ import { Team } from './Team'
 import { TeamPlayer } from './TeamPlayer'
 
 export interface Matches {
+  dateItemID?: number
   utcDate?: Date
   matchDate?: string
   matchDay?: number

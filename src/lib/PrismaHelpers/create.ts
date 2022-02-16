@@ -1,6 +1,7 @@
 import { TeamPlayer } from '../../../interfaces/TeamPlayer'
 import { MatchesArr } from '../../../interfaces/MatchesArray'
 import prisma from '../PrismaHelpers/prisma'
+import { DateItem } from '../../../interfaces/DateItem'
 
 async function createEsportsTeamMatchStats(
   matchID: number,
@@ -63,6 +64,7 @@ async function createEsportsPlayerMatchStats(
 }
 
 async function createEsportsMatch(
+  dateItemID: number,
   matchDate: string,
   matchDay: string,
   matchWeek: string,
@@ -74,6 +76,7 @@ async function createEsportsMatch(
 ) {
   await prisma.esports_match.create({
     data: {
+      dateItemID: dateItemID,
       matchDate: matchDate,
       matchDay: matchDay,
       matchWeek: matchWeek,
@@ -125,8 +128,52 @@ export async function createDateItem(
   })
 }
 
+export async function checkDateItem(dateItems: DateItem[]) {
+  return new Promise<void>((resolve, reject) => {
+    let count = 0
+    let loop = new Promise<void>((resolve, reject) => {
+      dateItems.forEach(async (cv, idx, arr) => {
+        try {
+          await prisma.esports_date_items
+            .findUnique({
+              where: {
+                matchDate_organization: {
+                  matchDate: cv.date,
+                  organization: cv.organization
+                }
+              }
+            })
+            .then(async dateItem => {
+              if (dateItem === null) {
+                console.log('creating dateItem', cv)
+                await createDateItem(
+                  cv.date,
+                  cv.gamesPlayed,
+                  cv.teamsParticipated,
+                  cv.organization,
+                  Date.now()
+                )
+              }
+            })
+        } catch (e) {
+          console.log(e)
+        } finally {
+          console.log('finished creating dateItem', cv)
+          count += 1
+          if (count === dateItems.length) {
+            resolve()
+          }
+        }
+      })
+    })
+    loop.then(() => {
+      resolve()
+    })
+  })
+}
+
 export async function checkTeams(teamNames: string[]) {
-  // Check if teamA exists in database
+  // Check if team exists in database
   return new Promise<void>((resolve, reject) => {
     let count = 0
     let loop = new Promise<void>((resolve, reject) => {
@@ -145,6 +192,7 @@ export async function checkTeams(teamNames: string[]) {
         } catch (e) {
           console.log(e)
         } finally {
+          console.log('finished creating team', cv)
           count += 1
           if (count === teamNames.length) {
             resolve()
@@ -205,6 +253,7 @@ export async function checkMatches(matches: MatchesArr) {
               if (match === null) {
                 console.log('creating match', cv.matchDate)
                 await createEsportsMatch(
+                  cv.dateItemID,
                   String(cv.matchDate),
                   String(cv.matchDay),
                   cv.matchWeek,
@@ -342,31 +391,34 @@ export async function checkPlayerStats(
                 }
               })
               .then(async currPlayer => {
-                await prisma.esports_player_match_stats
-                  .findFirst({
-                    where: {
-                      playerName: currPlayer.playerName,
-                      matchID: currMatch.matchID
-                    }
-                  })
-                  .then(async currPStats => {
-                    // console.log(currPStats);
-                    if (currPStats === null) {
-                      await createEsportsPlayerMatchStats(
-                        currMatch.matchID,
-                        currPlayer.playerID,
-                        currPlayer.playerName,
-                        player.teamName,
-                        player.role,
-                        player.championName,
-                        player.kills,
-                        player.assists,
-                        player.deaths,
-                        player.creepScore,
-                        player.totalPoints
-                      )
-                    }
-                  })
+                console.log(currPlayer)
+                if (currPlayer !== null) {
+                  await prisma.esports_player_match_stats
+                    .findFirst({
+                      where: {
+                        playerName: currPlayer.playerName,
+                        matchID: currMatch.matchID
+                      }
+                    })
+                    .then(async currPStats => {
+                      // console.log(currPStats);
+                      if (currPStats === null) {
+                        await createEsportsPlayerMatchStats(
+                          currMatch.matchID,
+                          currPlayer.playerID,
+                          currPlayer.playerName,
+                          player.teamName,
+                          player.role,
+                          player.championName,
+                          player.kills,
+                          player.assists,
+                          player.deaths,
+                          player.creepScore,
+                          player.totalPoints
+                        )
+                      }
+                    })
+                }
               })
           })
       } catch (err) {

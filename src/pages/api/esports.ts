@@ -10,16 +10,17 @@ import { calculateTeamScore, calculatePlayerScore } from '../../lib/helpers/calc
 import { uniqueFilter, uniqueObjFilter, uniqueDateObjFilter } from 'lib/helpers/uniqueFilter'
 import prisma from 'lib/PrismaHelpers/prisma'
 import {
-  createDateItem,
   checkTeams,
   checkPlayers,
   checkMatches,
   checkTeamStats,
-  checkPlayerStats
+  checkPlayerStats,
+  checkDateItem
 } from 'lib/PrismaHelpers/create'
 import nc from 'next-connect'
+import { dbDataParser } from 'lib/helpers/dbDataParser'
 
-const matchLimit = 210,
+const matchLimit = 5,
   playerLimit = matchLimit * 10,
   playerRoles = {
     Top: 1,
@@ -43,6 +44,34 @@ export default nc<NextApiRequest, NextApiResponse>({
   }
 })
   .get(async (req, res) => {
+    if (req.query.type === 'initial') {
+      await prisma.esports_date_items
+        .findMany({
+          include: {
+            esports_match: {
+              include: {
+                esports_team_match_stats: {
+                  include: {
+                    esports_teams: true
+                  }
+                },
+                esports_player_match_stats: {
+                  include: {
+                    esports_player: true
+                  }
+                }
+              }
+            }
+          }
+        })
+        .then(dateItems => {
+          if (dateItems.length !== 0) {
+            console.log('items found!', dateItems)
+            let parsedDateItem = dbDataParser(dateItems)
+            return res.status(200).send({ DateItems: parsedDateItem })
+          }
+        })
+    }
     /**
      * *************** Fetch from lol.esports.com ***************
      */
@@ -489,28 +518,29 @@ export default nc<NextApiRequest, NextApiResponse>({
     // promiseForEach(dateItems, (dateItem, idx) => dateItem))
 
     // Create DateItem in database
-    dateItems.forEach(async dateItem => {
-      await prisma.esports_date_items
-        .findUnique({
-          where: {
-            matchDate_organization: {
-              matchDate: dateItem.date,
-              organization: dateItem.organization
-            }
-          }
-        })
-        .then(async foundDateItem => {
-          if (foundDateItem === null) {
-            await createDateItem(
-              dateItem.date,
-              dateItem.gamesPlayed,
-              dateItem.teamsParticipated,
-              dateItem.organization,
-              Date.now()
-            )
-          }
-        })
-    })
+    await checkDateItem(dateItems)
+    // dateItems.forEach(async dateItem => {
+    //   await prisma.esports_date_items
+    //     .findUnique({
+    //       where: {
+    //         matchDate_organization: {
+    //           matchDate: dateItem.date,
+    //           organization: dateItem.organization
+    //         }
+    //       }
+    //     })
+    //     .then(async foundDateItem => {
+    //       if (foundDateItem === null) {
+    //         await createDateItem(
+    //           dateItem.date,
+    //           dateItem.gamesPlayed,
+    //           dateItem.teamsParticipated,
+    //           dateItem.organization,
+    //           Date.now()
+    //         )
+    //       }
+    //     })
+    // })
 
     // Create Teams & Players in database
     const totalTeams: string[] = []
@@ -521,126 +551,157 @@ export default nc<NextApiRequest, NextApiResponse>({
       })
     })
     let uniqueTeams = uniqueFilter(totalTeams)
-    await checkTeams(uniqueTeams).then(() => {
-      // Create players in database
-      let totalPlayers: TeamPlayersArr = []
-      dateItems.forEach(dateItem => {
-        dateItem.matches.forEach(match => {
-          match.teamAPlayers.forEach(cv => totalPlayers.push(cv))
-          match.teamBPlayers.forEach(cv => totalPlayers.push(cv))
-        })
-      })
-      // Filter unique player names
-      let uniquePlayers = uniqueFilter(totalPlayers.map(cv => cv.name))
-
-      Promise.all(uniquePlayers)
-        .then(players => {
-          // create unique objects with playername and teamname
-          let playerObjArr = []
-          dateItems.forEach(dateItem => {
+    await checkTeams(uniqueTeams)
+      .then(async () => {
+        // Create players in database
+        let totalPlayers: TeamPlayersArr = []
+        await Promise.all(
+          dateItems.map(dateItem => {
             dateItem.matches.forEach(match => {
-              match.teamAPlayers.forEach((player, playerIdx) => {
-                players.forEach(uniquePlayer => {
-                  let playerObj = {}
-                  if (player.name === uniquePlayer) {
-                    playerObj['name'] = player.name
-                    playerObj['teamName'] = player.teamName
-                    playerObjArr.push(playerObj)
-                  } else if (match.teamBPlayers[playerIdx].name === uniquePlayer) {
-                    playerObj['name'] = uniquePlayer
-                    playerObj['teamName'] = match.teamBPlayers[playerIdx].teamName
-                    playerObjArr.push(playerObj)
-                  }
+              match.teamAPlayers.forEach(cv => totalPlayers.push(cv))
+              match.teamBPlayers.forEach(cv => totalPlayers.push(cv))
+            })
+          })
+        )
+        // Filter unique player names
+        let uniquePlayers = uniqueFilter(totalPlayers.map(cv => cv.name))
+
+        await Promise.all(uniquePlayers)
+          .then(players => {
+            // create unique objects with playername and teamname
+            let playerObjArr = []
+            dateItems.forEach(dateItem => {
+              dateItem.matches.forEach(match => {
+                match.teamAPlayers.forEach((player, playerIdx) => {
+                  players.forEach(uniquePlayer => {
+                    let playerObj = {}
+                    if (player.name === uniquePlayer) {
+                      playerObj['name'] = player.name
+                      playerObj['teamName'] = player.teamName
+                      playerObjArr.push(playerObj)
+                    } else if (match.teamBPlayers[playerIdx].name === uniquePlayer) {
+                      playerObj['name'] = uniquePlayer
+                      playerObj['teamName'] = match.teamBPlayers[playerIdx].teamName
+                      playerObjArr.push(playerObj)
+                    }
+                  })
                 })
               })
             })
+            // console.log(playerObjArr)
+            return playerObjArr
           })
-          // console.log(playerObjArr)
-          return playerObjArr
-        })
-        .then(playerObjArr => {
-          // create unique object
-          let uniquePlayerObjArr = uniqueObjFilter(playerObjArr, 'teamName', 'name')
-          Promise.all(uniquePlayerObjArr).then(uniqueObjArr => {
-            uniqueObjArr.forEach(async (player, playerIdx) => {
-              await checkPlayers(player.name, player.teamName)
+          .then(async playerObjArr => {
+            // create unique object
+            let uniquePlayerObjArr = uniqueObjFilter(playerObjArr, 'teamName', 'name')
+            await Promise.all(
+              uniquePlayerObjArr.map(async (player, playerIdx) => {
+                await checkPlayers(player.name, player.teamName).then(() =>
+                  console.log('finished creating players')
+                )
+              })
+            )
+          })
+      })
+      .then(async () => {
+        // Create Matches
+        const totalMatches: MatchesArr = []
+        await Promise.all(
+          dateItems.map(async dateItem => {
+            await Promise.all(
+              dateItem.matches.map(async match => {
+                await prisma.esports_date_items
+                  .findUnique({
+                    where: {
+                      matchDate_organization: {
+                        matchDate: String(match.matchDate),
+                        organization: dateItem.organization
+                      }
+                    }
+                  })
+                  .then(dItem => {
+                    if (dItem) {
+                      match['dateItemID'] = dItem.id
+                    }
+                    totalMatches.push(match)
+                  })
+              })
+            )
+          })
+        )
+          .then(async () => {
+            await checkMatches(totalMatches).then(() => {
+              console.log('finished creating matches')
             })
           })
-        })
-    })
+          .then(async () => {
+            // Create team match stats
+            await Promise.all(
+              totalMatches.map(async match => {
+                // Match stats for TeamA
+                await checkTeamStats(
+                  String(match.matchDay),
+                  match.matchWeek,
+                  match.teamA.teamName,
+                  match.teamB.teamName,
+                  match.matchLength,
+                  match.teamA.teamName,
+                  match.teamA.didWin === true ? 1 : 0,
+                  match.teamA.teamKills,
+                  match.teamA.dragonKills,
+                  match.teamA.riftHeralds,
+                  match.teamA.turretKills,
+                  match.teamA.baronKills,
+                  match.teamA.inhibitorKills,
+                  match.teamA.totalPoints
+                ).then(async () => {
+                  // Match stats for TeamB
+                  await checkTeamStats(
+                    String(match.matchDay),
+                    match.matchWeek,
+                    match.teamA.teamName,
+                    match.teamB.teamName,
+                    match.matchLength,
+                    match.teamB.teamName,
+                    match.teamB.didWin === true ? 1 : 0,
+                    match.teamB.teamKills,
+                    match.teamB.dragonKills,
+                    match.teamB.riftHeralds,
+                    match.teamB.turretKills,
+                    match.teamB.baronKills,
+                    match.teamB.inhibitorKills,
+                    match.teamB.totalPoints
+                  ).then(() => console.log('finished creating teammatch stats'))
+                })
+              })
+            )
+          })
 
-    // Create Matches
-    const totalMatches: MatchesArr = []
-    dateItems.forEach(dateItem => {
-      dateItem.matches.forEach(match => {
-        totalMatches.push(match)
-      })
-    })
-    await checkMatches(totalMatches).then(() => {
-      console.log('finished creating matches')
-    })
-
-    // Create team match stats
-    totalMatches.forEach(async match => {
-      // Match stats for TeamA
-      await checkTeamStats(
-        String(match.matchDay),
-        match.matchWeek,
-        match.teamA.teamName,
-        match.teamB.teamName,
-        match.matchLength,
-        match.teamA.teamName,
-        match.teamA.didWin === true ? 1 : 0,
-        match.teamA.teamKills,
-        match.teamA.dragonKills,
-        match.teamA.riftHeralds,
-        match.teamA.turretKills,
-        match.teamA.baronKills,
-        match.teamA.inhibitorKills,
-        match.teamA.totalPoints
-      ).then(async () => {
-        // Match stats for TeamB
-        await checkTeamStats(
-          String(match.matchDay),
-          match.matchWeek,
-          match.teamA.teamName,
-          match.teamB.teamName,
-          match.matchLength,
-          match.teamB.teamName,
-          match.teamB.didWin === true ? 1 : 0,
-          match.teamB.teamKills,
-          match.teamB.dragonKills,
-          match.teamB.riftHeralds,
-          match.teamB.turretKills,
-          match.teamB.baronKills,
-          match.teamB.inhibitorKills,
-          match.teamB.totalPoints
-        ).then(() => console.log('finished creating teammatch stats'))
-      })
-    })
-
-    // Create player match stats
-    totalMatches.forEach(async match => {
-      // Team A player stats
-      await checkPlayerStats(
-        String(match.matchDay),
-        match.matchWeek,
-        match.teamA.teamName,
-        match.teamB.teamName,
-        match.matchLength,
-        match.teamAPlayers
-      ).then(async () => {
-        // Team B player stats
-        await checkPlayerStats(
-          String(match.matchDay),
-          match.matchWeek,
-          match.teamA.teamName,
-          match.teamB.teamName,
-          match.matchLength,
-          match.teamBPlayers
+        // Create player match stats
+        await Promise.all(
+          totalMatches.map(async match => {
+            // Team A player stats
+            await checkPlayerStats(
+              String(match.matchDay),
+              match.matchWeek,
+              match.teamA.teamName,
+              match.teamB.teamName,
+              match.matchLength,
+              match.teamAPlayers
+            ).then(async () => {
+              // Team B player stats
+              await checkPlayerStats(
+                String(match.matchDay),
+                match.matchWeek,
+                match.teamA.teamName,
+                match.teamB.teamName,
+                match.matchLength,
+                match.teamBPlayers
+              )
+            })
+          })
         )
       })
-    })
 
     return res.status(200).json({ message: 'Details saved succesfully!' })
   })
