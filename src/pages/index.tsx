@@ -4,6 +4,7 @@ import { MatchList } from '../components/MatchList/MatchList'
 import { Grid, Box, Container, Snackbar, Button } from '@mui/material'
 import { secureLoader, useAPIPost } from 'lib/api'
 import { DateItem } from '../../interfaces/DateItem'
+import axios from 'axios'
 import useSWR, { useSWRConfig } from 'swr'
 import useSWRImmutable from 'swr/immutable'
 import MuiAlert, { AlertProps } from '@mui/material/Alert'
@@ -25,6 +26,8 @@ const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(props,
 
 const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
   const [shouldFetch, setShouldFetch] = React.useState(false)
+  const [data, setData] = React.useState(null)
+  const [error, setError] = React.useState(false)
 
   // For snackbars
   const [openSuccess, setOpenSuccess] = React.useState(false)
@@ -34,11 +37,12 @@ const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
 
   // For fetching
   const saveData = useAPIPost<void, { dataItem: DateItem[] }>(URL)
-  const { data, error } = useSWR<FetchedData>(shouldFetch ? null : URL, secureLoader() )
-  // const { data, error } = useSWRImmutable<FetchedData>(shouldFetch ? null : URL, secureLoader())
   const { mutate } = useSWRConfig()
 
   React.useEffect(() => {
+    if (!data) {
+      handleFetch()
+    }
     if (saveData.posted) {
       setOpenSuccess(true)
       if (openPost) {
@@ -49,6 +53,8 @@ const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
     if (saveData.posting) {
       if (openSuccess) {
         setOpenPost(false)
+      } else {
+        setOpenPost(true)
       }
     }
     if (saveData.error) {
@@ -72,6 +78,38 @@ const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
     setOpenFailure(false)
     setOpenFetch(false)
     setOpenPost(false)
+  }
+
+  const handleFetch = () => {
+    setOpenFetch(true)
+    if (!data) {
+      axios
+        .get(URL, {
+          params: { type: 'initial' },
+          timeout: 35000
+        })
+        .then(resp => {
+          setData(resp.data)
+        })
+        .catch(err => {
+          console.error(err)
+          setError(true)
+        })
+        .finally(() => setOpenFetch(false))
+    } else {
+      axios
+        .get(URL, {
+          timeout: 35000
+        })
+        .then(resp => {
+          setData(resp.data)
+        })
+        .catch(err => {
+          console.error(err)
+          setError(true)
+        })
+        .finally(() => setOpenFetch(false))
+    }
   }
 
   if (error) return <div>failed to load</div>
@@ -98,9 +136,7 @@ const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
         <MatchList dateItems={data.DateItems || []} />
         <Box display='flex' flexDirection='row' justifyContent='center'>
           <Button
-            onClick={async () => {
-              setShouldFetch(true)
-            }}
+            onClick={handleFetch}
             variant='contained'
             sx={[
               {
