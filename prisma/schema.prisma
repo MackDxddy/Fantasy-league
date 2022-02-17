@@ -23,6 +23,7 @@ model esports_match {
   matchID                    Int                          @id @default(autoincrement())
   dateItemID                 Int?
   matchDate                  String?
+  matchUTCDate               Int?
   matchDay                   String?
   matchWeek                  String?
   teamA                      String?
@@ -34,12 +35,12 @@ model esports_match {
   esports_player_match_stats esports_player_match_stats[]
   esports_team_match_stats   esports_team_match_stats[]
 
-  @@unique([matchDay, matchWeek, teamA, teamB, matchLength])
+  @@unique([matchUTCDate, matchWeek, teamA, teamB, matchLength])
 }
 
 model esports_player {
   playerID                   Int                          @id @default(autoincrement())
-  playerName                 String?
+  name                       String?
   teamID                     Int?
   esports_teams              esports_teams?               @relation(fields: [teamID], references: [teamID])
   esports_player_match_stats esports_player_match_stats[]
@@ -49,7 +50,7 @@ model esports_player_match_stats {
   id             Int            @id @default(autoincrement())
   matchID        Int
   playerID       Int
-  playerName     String?
+  name           String?
   teamName       String?
   role           String?
   legend         String?

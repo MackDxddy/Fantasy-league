@@ -16,6 +16,7 @@ export const dbDataParser = (dateItems: DateItemWithData[]) => {
     let matches = dateItem.esports_match.map(match => {
       // Create match object
       let parsedMatch: Matches = {
+        utcDate: new Date(match.matchUTCDate),
         matchDate: match.matchDate,
         matchDay: Number(match.matchDay),
         matchWeek: match.matchWeek,
@@ -68,41 +69,47 @@ export const dbDataParser = (dateItems: DateItemWithData[]) => {
         Support: 5
       }
       // Assign team A players
-      let teamAPlayers = match.esports_player_match_stats.filter(player => {
-        if (player.teamName === teamA.teamName) {
-          let currPlayer: TeamPlayer = {
-            teamName: player.teamName,
-            name: player.playerName,
-            totalPoints: Number(player.playerScore),
-            championName: player.legend,
-            role: player.role,
-            rolePosition: playerRoles[player.role],
-            kills: player.kills,
-            assists: player.assists,
-            deaths: player.deaths,
-            creepScore: player.creepScore
+      let teamAPlayers = match.esports_player_match_stats
+        .map(player => {
+          if (player.teamName === teamA.teamName) {
+            let currPlayer: TeamPlayer = {
+              teamName: player.teamName,
+              name: player.name,
+              totalPoints: Number(player.playerScore),
+              championName: player.legend,
+              role: player.role,
+              rolePosition: playerRoles[player.role],
+              kills: player.kills,
+              assists: player.assists,
+              deaths: player.deaths,
+              creepScore: player.creepScore
+            }
+            return currPlayer
           }
-        }
-      })
+        })
+        .filter(player => player !== undefined)
       teamA.teamPlayers = teamAPlayers
 
       // Assign team B players
-      let teamBPlayers = match.esports_player_match_stats.filter(player => {
-        if (player.teamName === teamB.teamName) {
-          let currPlayer: TeamPlayer = {
-            teamName: player.teamName,
-            name: player.playerName,
-            totalPoints: Number(player.playerScore),
-            championName: player.legend,
-            role: player.role,
-            rolePosition: playerRoles[player.role],
-            kills: player.kills,
-            assists: player.assists,
-            deaths: player.deaths,
-            creepScore: player.creepScore
+      let teamBPlayers = match.esports_player_match_stats
+        .map(player => {
+          if (player.teamName === teamB.teamName) {
+            let currPlayer: TeamPlayer = {
+              teamName: player.teamName,
+              name: player.name,
+              totalPoints: Number(player.playerScore),
+              championName: player.legend,
+              role: player.role,
+              rolePosition: playerRoles[player.role],
+              kills: player.kills,
+              assists: player.assists,
+              deaths: player.deaths,
+              creepScore: player.creepScore
+            }
+            return currPlayer
           }
-        }
-      })
+        })
+        .filter(player => player !== undefined)
       teamB.teamPlayers = teamBPlayers
 
       parsedMatch.teamA = teamA

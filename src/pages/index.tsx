@@ -85,10 +85,10 @@ const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
     if (!data) {
       axios
         .get(URL, {
-          params: { type: 'initial' }
+          params: { type: 'initial' },
+          timeout: 35000
         })
         .then(resp => {
-          console.log(resp)
           setData(resp.data)
         })
         .catch(err => {
@@ -98,9 +98,10 @@ const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
         .finally(() => setOpenFetch(false))
     } else {
       axios
-        .get(URL)
+        .get(URL, {
+          timeout: 35000
+        })
         .then(resp => {
-          console.log(resp)
           setData(resp.data)
         })
         .catch(err => {

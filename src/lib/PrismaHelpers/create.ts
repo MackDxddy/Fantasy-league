@@ -50,7 +50,7 @@ async function createEsportsPlayerMatchStats(
     data: {
       matchID: matchID,
       playerID: playerID,
-      playerName: playerName,
+      name: playerName,
       teamName: teamName,
       role: role,
       legend: legend,
@@ -66,6 +66,7 @@ async function createEsportsPlayerMatchStats(
 async function createEsportsMatch(
   dateItemID: number,
   matchDate: string,
+  matchUTCDate: number,
   matchDay: string,
   matchWeek: string,
   teamA: string,
@@ -78,6 +79,7 @@ async function createEsportsMatch(
     data: {
       dateItemID: dateItemID,
       matchDate: matchDate,
+      matchUTCDate: matchUTCDate,
       matchDay: matchDay,
       matchWeek: matchWeek,
       teamA: teamA,
@@ -105,7 +107,7 @@ async function createEsportsUser(teamID: number, playerName: string) {
   await prisma.esports_player.create({
     data: {
       teamID: teamID,
-      playerName: playerName
+      name: playerName
     }
   })
 }
@@ -145,7 +147,6 @@ export async function checkDateItem(dateItems: DateItem[]) {
             })
             .then(async dateItem => {
               if (dateItem === null) {
-                console.log('creating dateItem', cv)
                 await createDateItem(
                   cv.date,
                   cv.gamesPlayed,
@@ -153,12 +154,26 @@ export async function checkDateItem(dateItems: DateItem[]) {
                   cv.organization,
                   Date.now()
                 )
+              } else {
+                if (dateItem.gamesPlayed !== cv.gamesPlayed) {
+                  await prisma.esports_date_items.update({
+                    where: {
+                      matchDate_organization: {
+                        matchDate: cv.date,
+                        organization: cv.organization
+                      }
+                    },
+                    data: {
+                      gamesPlayed: cv.gamesPlayed,
+                      teamsParticipated: cv.teamsParticipated
+                    }
+                  })
+                }
               }
             })
         } catch (e) {
           console.log(e)
         } finally {
-          console.log('finished creating dateItem', cv)
           count += 1
           if (count === dateItems.length) {
             resolve()
@@ -185,14 +200,12 @@ export async function checkTeams(teamNames: string[]) {
             })
             .then(async team => {
               if (team === null) {
-                console.log('creating team', cv)
                 await createEsportsTeam(cv)
               }
             })
         } catch (e) {
           console.log(e)
         } finally {
-          console.log('finished creating team', cv)
           count += 1
           if (count === teamNames.length) {
             resolve()
@@ -216,11 +229,10 @@ export async function checkPlayers(playerName: string, playerTeamName: string) {
         if (team !== null) {
           await prisma.esports_player
             .findFirst({
-              where: { playerName: playerName }
+              where: { name: playerName }
             })
             .then(async player => {
               if (player === null) {
-                console.log('creating player', playerName)
                 await createEsportsUser(team.teamID, playerName)
               }
             })
@@ -240,8 +252,8 @@ export async function checkMatches(matches: MatchesArr) {
           await prisma.esports_match
             .findUnique({
               where: {
-                matchDay_matchWeek_teamA_teamB_matchLength: {
-                  matchDay: String(cv.matchDay),
+                matchUTCDate_matchWeek_teamA_teamB_matchLength: {
+                  matchUTCDate: new Date(cv.utcDate).getTime(),
                   matchWeek: String(cv.matchWeek),
                   teamA: String(cv.teamA.teamName),
                   teamB: String(cv.teamB.teamName),
@@ -251,10 +263,10 @@ export async function checkMatches(matches: MatchesArr) {
             })
             .then(async match => {
               if (match === null) {
-                console.log('creating match', cv.matchDate)
                 await createEsportsMatch(
                   cv.dateItemID,
-                  String(cv.matchDate),
+                  cv.matchDate,
+                  new Date(cv.utcDate).getTime(),
                   String(cv.matchDay),
                   cv.matchWeek,
                   cv.teamA.teamName,
@@ -282,7 +294,7 @@ export async function checkMatches(matches: MatchesArr) {
 }
 
 export async function checkTeamStats(
-  matchDay: string, // Needed to find match
+  matchDate: number, // Needed to find match
   matchWeek: string,
   teamAName: string,
   teamBName: string,
@@ -301,8 +313,8 @@ export async function checkTeamStats(
     .findUnique({
       // Finds match
       where: {
-        matchDay_matchWeek_teamA_teamB_matchLength: {
-          matchDay: String(matchDay),
+        matchUTCDate_matchWeek_teamA_teamB_matchLength: {
+          matchUTCDate: matchDate,
           matchWeek: String(matchWeek),
           teamA: String(teamAName),
           teamB: String(teamBName),
@@ -330,12 +342,6 @@ export async function checkTeamStats(
                 })
                 .then(async matchStats => {
                   if (matchStats === null) {
-                    console.log(
-                      'creating team stats for',
-                      teamName,
-                      'for match id',
-                      currMatch.matchID
-                    )
                     await createEsportsTeamMatchStats(
                       currMatch.matchID,
                       team.teamID,
@@ -358,7 +364,7 @@ export async function checkTeamStats(
 }
 
 export async function checkPlayerStats(
-  matchDay: string, // Needed to find match
+  matchDate: number, // Needed to find match
   matchWeek: string,
   teamAName: string,
   teamBName: string,
@@ -374,8 +380,8 @@ export async function checkPlayerStats(
           .findUnique({
             // Finds match
             where: {
-              matchDay_matchWeek_teamA_teamB_matchLength: {
-                matchDay: String(matchDay),
+              matchUTCDate_matchWeek_teamA_teamB_matchLength: {
+                matchUTCDate: matchDate,
                 matchWeek: String(matchWeek),
                 teamA: String(teamAName),
                 teamB: String(teamBName),
@@ -387,7 +393,7 @@ export async function checkPlayerStats(
             await prisma.esports_player
               .findFirst({
                 where: {
-                  playerName: player.name
+                  name: player.name
                 }
               })
               .then(async currPlayer => {
@@ -396,17 +402,16 @@ export async function checkPlayerStats(
                   await prisma.esports_player_match_stats
                     .findFirst({
                       where: {
-                        playerName: currPlayer.playerName,
+                        name: currPlayer.name,
                         matchID: currMatch.matchID
                       }
                     })
                     .then(async currPStats => {
-                      // console.log(currPStats);
                       if (currPStats === null) {
                         await createEsportsPlayerMatchStats(
                           currMatch.matchID,
                           currPlayer.playerID,
-                          currPlayer.playerName,
+                          currPlayer.name,
                           player.teamName,
                           player.role,
                           player.championName,
