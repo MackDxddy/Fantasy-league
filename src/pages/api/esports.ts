@@ -25,7 +25,7 @@ import {
 import nc from 'next-connect'
 import { dbDataParser } from 'lib/helpers/dbDataParser'
 
-const matchLimit = 10,
+const matchLimit = 300,
   playerLimit = matchLimit * 10,
   playerRoles = {
     Top: 1,
@@ -49,6 +49,7 @@ export default nc<NextApiRequest, NextApiResponse>({
   }
 })
   .get(async (req, res) => {
+    // Check if data exists in database
     if (req.query.type === 'initial') {
       await prisma.esports_date_items
         .findMany({
@@ -71,8 +72,6 @@ export default nc<NextApiRequest, NextApiResponse>({
         })
         .then(dateItems => {
           if (dateItems.length !== 0) {
-            console.log('items found!')
-            // console.log('items found!', dateItems)
             let parsedDateItem = dbDataParser(dateItems)
             return res.status(200).send({ DateItems: parsedDateItem })
           }
@@ -137,8 +136,6 @@ export default nc<NextApiRequest, NextApiResponse>({
       })
       .catch(err => console.log('err', err))
 
-    // old query
-    // "Tournaments.DateStart >= '2022-01-01 00:00:00' AND (Tournaments.Name LIKE 'LCS%Spring' OR Tournaments.Name LIKE 'LEC%Spring') AND ScoreboardGames.DateTime_UTC <> ''",
     const players = await cargo
       .query({
         tables: ['Tournaments', 'ScoreboardGames', 'ScoreboardPlayers'],
@@ -187,8 +184,6 @@ export default nc<NextApiRequest, NextApiResponse>({
     let currMatches = matches ? matches.data : null,
       currPlayers = players ? players.data : null
 
-    console.log(currMatches.slice(0, 2))
-    console.log(currPlayers.slice(0, 2))
     if (currMatches === null || currPlayers === null) {
       console.log('error occured here')
       return res.status(500).end('Something went wrong.')
@@ -249,7 +244,6 @@ export default nc<NextApiRequest, NextApiResponse>({
                       match.OverviewPage === currOrg &&
                       uniqueFormattedDate === formatDate(String(uniqueDate))
                     ) {
-                      console.log('run')
                       // Initiliaze variables that will hold teams, teamplayers and match
                       let teamA: Team = <Team>{},
                         teamB: Team = <Team>{},

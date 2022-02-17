@@ -397,7 +397,6 @@ export async function checkPlayerStats(
                 }
               })
               .then(async currPlayer => {
-                console.log(currPlayer)
                 if (currPlayer !== null) {
                   await prisma.esports_player_match_stats
                     .findFirst({
@@ -435,5 +434,5 @@ export async function checkPlayerStats(
         }
       }
     })
-  }).then(() => console.log('finished creating player stats'))
+  })
 }
