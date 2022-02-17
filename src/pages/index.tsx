@@ -62,10 +62,6 @@ const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
       saveData.reset()
       setOpenFailure(true)
     }
-    if (shouldFetch) {
-      setOpenFetch(true)
-      setShouldFetch(false)
-    }
     mutate(URL)
   }, [saveData.posted, shouldFetch, saveData.posting])
 
@@ -82,6 +78,7 @@ const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
 
   const handleFetch = () => {
     setOpenFetch(true)
+    setShouldFetch(true)
     if (!data) {
       axios
         .get(URL, {
@@ -95,7 +92,10 @@ const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
           console.error(err)
           setError(true)
         })
-        .finally(() => setOpenFetch(false))
+        .finally(() => {
+          setOpenFetch(false)
+          setShouldFetch(false)
+        })
     } else {
       axios
         .get(URL, {
@@ -108,7 +108,10 @@ const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
           console.error(err)
           setError(true)
         })
-        .finally(() => setOpenFetch(false))
+        .finally(() => {
+          setOpenFetch(false)
+          setShouldFetch(false)
+        })
     }
   }
 
@@ -152,7 +155,7 @@ const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
               }
             ]}
             color='primary'
-            disabled={shouldFetch ? true : false}
+            disabled={shouldFetch ? true : false || saveData.posting}
           >
             Fetch New Data
           </Button>
@@ -175,6 +178,7 @@ const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
               }
             ]}
             color='primary'
+            disabled={saveData.posting ? true : false}
           >
             Update Database
           </Button>
@@ -190,7 +194,7 @@ const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
           Could not save data!
         </Alert>
       </Snackbar>
-      <Snackbar open={openFetch} autoHideDuration={3000} onClose={handleClose}>
+      <Snackbar open={openFetch} autoHideDuration={10000} onClose={handleClose}>
         <Alert
           onClose={handleClose}
           severity='info'
@@ -199,7 +203,7 @@ const IndexPage: NextPage<SubscribeHeroProps> = ({ isFetching, hasError }) => {
           Fetching new data...
         </Alert>
       </Snackbar>
-      <Snackbar open={openPost} autoHideDuration={3000} onClose={handleClose}>
+      <Snackbar open={openPost} autoHideDuration={10000} onClose={handleClose}>
         <Alert
           onClose={handleClose}
           severity='info'
