@@ -88,11 +88,11 @@ export default nc<NextApiRequest, NextApiResponse>({
         tables: ['Tournaments', 'MatchSchedule', 'ScoreboardGames'],
         where:
           // LPL, LCS, LEC, LCK
-          "MatchSchedule.DateTime_UTC >= '2022-01-01 00:00:00' AND (MatchSchedule.OverviewPage LIKE '%LPL%' OR MatchSchedule.OverviewPage LIKE '%LCS%' OR MatchSchedule.OverviewPage LIKE '%LEC%' OR MatchSchedule.OverviewPage LIKE '%LCK%') AND NOT MatchSchedule.OverviewPage LIKE '%Lock In%' AND NOT MatchSchedule.OverviewPage LIKE '%Proving Grounds%' AND MatchSchedule.DateTime_UTC <> '' AND NOT MatchSchedule.OverviewPage LIKE '%CL%'",
+          "MatchSchedule.DateTime_UTC >= '2022-01-01 00:00:00' AND (MatchSchedule.OverviewPage LIKE '%LPL%' OR MatchSchedule.OverviewPage LIKE '%LCS%' OR MatchSchedule.OverviewPage LIKE '%LEC%' OR MatchSchedule.OverviewPage LIKE '%LCK%') AND NOT MatchSchedule.OverviewPage LIKE '%Lock In%' AND NOT MatchSchedule.OverviewPage LIKE '%Proving Grounds%' AND MatchSchedule.DateTime_UTC <> '' AND NOT MatchSchedule.OverviewPage LIKE '%CL%' AND NOT MatchSchedule.OverviewPage LIKE '%OL%'",
           // LCS, LEC
           // "MatchSchedule.DateTime_UTC >= '2022-01-01 00:00:00' AND (MatchSchedule.OverviewPage LIKE '%LCS%' OR MatchSchedule.OverviewPage LIKE '%LEC%') AND NOT MatchSchedule.OverviewPage LIKE '%Lock In%' AND NOT MatchSchedule.OverviewPage LIKE '%Proving Grounds%' AND MatchSchedule.DateTime_UTC <> ''",
           // LPL, LCK
-          // "MatchSchedule.DateTime_UTC >= '2022-01-01 00:00:00' AND (MatchSchedule.OverviewPage LIKE '%LPL%' OR MatchSchedule.OverviewPage LIKE '%LCK%') AND NOT MatchSchedule.OverviewPage LIKE '%Lock In%' AND NOT MatchSchedule.OverviewPage LIKE '%Proving Grounds%' AND MatchSchedule.DateTime_UTC <> '' AND NOT MatchSchedule.OverviewPage LIKE '%CL%'",
+          // "MatchSchedule.DateTime_UTC >= '2022-01-01 00:00:00' AND (MatchSchedule.OverviewPage LIKE '%LPL%' OR MatchSchedule.OverviewPage LIKE '%LCK%') AND NOT MatchSchedule.OverviewPage LIKE '%Lock In%' AND NOT MatchSchedule.OverviewPage LIKE '%Proving Grounds%' AND MatchSchedule.DateTime_UTC <> '' AND NOT MatchSchedule.OverviewPage LIKE '%CL%' AND NOT MatchSchedule.OverviewPage LIKE '%OL%'",
         fields: [
           'MatchSchedule.DateTime_UTC',
           'MatchSchedule.Tab',
@@ -141,11 +141,11 @@ export default nc<NextApiRequest, NextApiResponse>({
         tables: ['Tournaments', 'ScoreboardGames', 'ScoreboardPlayers'],
         where:
           // LPL, LCS, LEC, LCK
-          "Tournaments.DateStart >= '2022-01-01 00:00:00' AND (Tournaments.Name LIKE '%LPL%' OR Tournaments.Name LIKE '%LCS%' OR Tournaments.Name LIKE '%LEC%' OR Tournaments.Name LIKE '%LCK%') AND NOT Tournaments.Name LIKE '%Lock In%' AND NOT Tournaments.Name LIKE '%Proving Grounds%' AND ScoreboardGames.DateTime_UTC <> '' AND NOT Tournaments.Name LIKE '%CL%'",
+          "Tournaments.DateStart >= '2022-01-01 00:00:00' AND (Tournaments.Name LIKE '%LPL%' OR Tournaments.Name LIKE '%LCS%' OR Tournaments.Name LIKE '%LEC%' OR Tournaments.Name LIKE '%LCK%') AND NOT Tournaments.Name LIKE '%Lock In%' AND NOT Tournaments.Name LIKE '%Proving Grounds%' AND ScoreboardGames.DateTime_UTC <> '' AND NOT Tournaments.Name LIKE '%CL%' AND NOT Tournaments.Name LIKE '%OL%'",
           // LCS, LEC
           // "Tournaments.DateStart >= '2022-01-01 00:00:00' AND (Tournaments.Name LIKE '%LCS%' OR Tournaments.Name LIKE '%LEC%') AND NOT Tournaments.Name LIKE '%Lock In%' AND NOT Tournaments.Name LIKE '%Proving Grounds%' AND ScoreboardGames.DateTime_UTC <> ''",
           // LPL, LCK
-          // "Tournaments.DateStart >= '2022-01-01 00:00:00' AND (Tournaments.Name LIKE '%LPL%' OR Tournaments.Name LIKE '%LCK%') AND NOT Tournaments.Name LIKE '%Lock In%' AND NOT Tournaments.Name LIKE '%Proving Grounds%' AND ScoreboardGames.DateTime_UTC <> '' AND NOT Tournaments.Name LIKE '%CL%'",
+          // "Tournaments.DateStart >= '2022-01-01 00:00:00' AND (Tournaments.Name LIKE '%LPL%' OR Tournaments.Name LIKE '%LCK%') AND NOT Tournaments.Name LIKE '%Lock In%' AND NOT Tournaments.Name LIKE '%Proving Grounds%' AND ScoreboardGames.DateTime_UTC <> '' AND NOT Tournaments.Name LIKE '%CL%' AND NOT Tournaments.Name LIKE '%OL%'",
         fields: [
           'ScoreboardGames.DateTime_UTC',
           'ScoreboardGames.OverviewPage',
@@ -187,7 +187,7 @@ export default nc<NextApiRequest, NextApiResponse>({
     if (currMatches === null || currPlayers === null) {
       console.log('error occured here')
       return res.status(500).end('Something went wrong.')
-    } else console.log('no error')
+    } else console.log('no error fetching')
 
     // gets array of formatted dates to filter unique dates
     let uniqueFormattedDates = uniqueFilter(
@@ -412,93 +412,95 @@ export default nc<NextApiRequest, NextApiResponse>({
                           currentDateItem.organization = match.OverviewPage
                         })
 
-                      if (teamAPlayers[0].name === match.Team2Players[0]) {
-                        // Set basic team A stats
-                        teamA.teamName = match.Team1 // SK
-                        teamA.teamKills = match.Team2Kills
-                        teamA.dragonKills = match.Team2Dragons
-                        teamA.riftHeralds = match.Team2RiftHeralds
-                        teamA.turretKills = match.Team2Towers
-                        teamA.baronKills = match.Team2Barons
-                        teamA.inhibitorKills = match.Team2Inhibitors
-                        teamA.didWin = match.Winner === 1 ? true : false
-                        let totalAPoints = await calculateTeamScore(
-                          match.Team2Kills,
-                          match.Team2Dragons,
-                          match.Team2RiftHeralds,
-                          match.Team2Towers,
-                          match.Team2Inhibitors,
-                          match.Team2Barons,
-                          teamA.didWin
-                        )
+                      if (teamAPlayers.length > 0) {
+                        if (teamAPlayers[0].name === match.Team2Players[0]) {
+                          // Set basic team A stats
+                          teamA.teamName = match.Team1 // SK
+                          teamA.teamKills = match.Team2Kills
+                          teamA.dragonKills = match.Team2Dragons
+                          teamA.riftHeralds = match.Team2RiftHeralds
+                          teamA.turretKills = match.Team2Towers
+                          teamA.baronKills = match.Team2Barons
+                          teamA.inhibitorKills = match.Team2Inhibitors
+                          teamA.didWin = match.Winner === 1 ? true : false
+                          let totalAPoints = await calculateTeamScore(
+                            match.Team2Kills,
+                            match.Team2Dragons,
+                            match.Team2RiftHeralds,
+                            match.Team2Towers,
+                            match.Team2Inhibitors,
+                            match.Team2Barons,
+                            teamA.didWin
+                          )
 
-                        teamA.totalPoints = totalAPoints
+                          teamA.totalPoints = totalAPoints
 
-                        // push to totalDateItemTeams
-                        // console.log('total team points for', match.Team1, 'is', totalPoints)
-                        // Set basic team B stats
-                        teamB.teamName = match.Team2 //Rogue
-                        teamB.teamKills = match.Team1Kills
-                        teamB.dragonKills = match.Team1Dragons
-                        teamB.riftHeralds = match.Team1RiftHeralds
-                        teamB.turretKills = match.Team1Towers
-                        teamB.baronKills = match.Team1Barons
-                        teamB.inhibitorKills = match.Team1Inhibitors
-                        teamB.didWin = match.Winner === 2 ? true : false
-                        let totalBPoints = await calculateTeamScore(
-                          match.Team1Kills,
-                          match.Team1Dragons,
-                          match.Team1RiftHeralds,
-                          match.Team1Towers,
-                          match.Team1Inhibitors,
-                          match.Team1Barons,
-                          teamB.didWin
-                        )
+                          // push to totalDateItemTeams
+                          // console.log('total team points for', match.Team1, 'is', totalPoints)
+                          // Set basic team B stats
+                          teamB.teamName = match.Team2 //Rogue
+                          teamB.teamKills = match.Team1Kills
+                          teamB.dragonKills = match.Team1Dragons
+                          teamB.riftHeralds = match.Team1RiftHeralds
+                          teamB.turretKills = match.Team1Towers
+                          teamB.baronKills = match.Team1Barons
+                          teamB.inhibitorKills = match.Team1Inhibitors
+                          teamB.didWin = match.Winner === 2 ? true : false
+                          let totalBPoints = await calculateTeamScore(
+                            match.Team1Kills,
+                            match.Team1Dragons,
+                            match.Team1RiftHeralds,
+                            match.Team1Towers,
+                            match.Team1Inhibitors,
+                            match.Team1Barons,
+                            teamB.didWin
+                          )
 
-                        teamB.totalPoints = totalBPoints
-                      }
-                      if (teamAPlayers[0].name === match.Team1Players[0]) {
-                        // Set basic team A stats
-                        teamA.teamName = match.Team1 //Rogue
-                        teamA.teamKills = match.Team1Kills
-                        teamA.dragonKills = match.Team1Dragons
-                        teamA.riftHeralds = match.Team1RiftHeralds
-                        teamA.turretKills = match.Team1Towers
-                        teamA.baronKills = match.Team1Barons
-                        teamA.inhibitorKills = match.Team1Inhibitors
-                        teamA.didWin = match.Winner === 1 ? true : false
-                        let totalAPoints = await calculateTeamScore(
-                          match.Team1Kills,
-                          match.Team1Dragons,
-                          match.Team1RiftHeralds,
-                          match.Team1Towers,
-                          match.Team1Inhibitors,
-                          match.Team1Barons,
-                          teamA.didWin
-                        )
+                          teamB.totalPoints = totalBPoints
+                        }
+                        if (teamAPlayers[0].name === match.Team1Players[0]) {
+                          // Set basic team A stats
+                          teamA.teamName = match.Team1 //Rogue
+                          teamA.teamKills = match.Team1Kills
+                          teamA.dragonKills = match.Team1Dragons
+                          teamA.riftHeralds = match.Team1RiftHeralds
+                          teamA.turretKills = match.Team1Towers
+                          teamA.baronKills = match.Team1Barons
+                          teamA.inhibitorKills = match.Team1Inhibitors
+                          teamA.didWin = match.Winner === 1 ? true : false
+                          let totalAPoints = await calculateTeamScore(
+                            match.Team1Kills,
+                            match.Team1Dragons,
+                            match.Team1RiftHeralds,
+                            match.Team1Towers,
+                            match.Team1Inhibitors,
+                            match.Team1Barons,
+                            teamA.didWin
+                          )
 
-                        teamA.totalPoints = totalAPoints
+                          teamA.totalPoints = totalAPoints
 
-                        // Set basic team B stats
-                        teamB.teamName = match.Team2 //Rogue
-                        teamB.teamKills = match.Team2Kills
-                        teamB.dragonKills = match.Team2Dragons
-                        teamB.riftHeralds = match.Team2RiftHeralds
-                        teamB.turretKills = match.Team2Towers
-                        teamB.baronKills = match.Team2Barons
-                        teamB.inhibitorKills = match.Team2Inhibitors
-                        teamB.didWin = match.Winner === 2 ? true : false
-                        let totalBPoints = await calculateTeamScore(
-                          match.Team2Kills,
-                          match.Team2Dragons,
-                          match.Team2RiftHeralds,
-                          match.Team2Towers,
-                          match.Team2Inhibitors,
-                          match.Team2Barons,
-                          teamB.didWin
-                        )
+                          // Set basic team B stats
+                          teamB.teamName = match.Team2 //Rogue
+                          teamB.teamKills = match.Team2Kills
+                          teamB.dragonKills = match.Team2Dragons
+                          teamB.riftHeralds = match.Team2RiftHeralds
+                          teamB.turretKills = match.Team2Towers
+                          teamB.baronKills = match.Team2Barons
+                          teamB.inhibitorKills = match.Team2Inhibitors
+                          teamB.didWin = match.Winner === 2 ? true : false
+                          let totalBPoints = await calculateTeamScore(
+                            match.Team2Kills,
+                            match.Team2Dragons,
+                            match.Team2RiftHeralds,
+                            match.Team2Towers,
+                            match.Team2Inhibitors,
+                            match.Team2Barons,
+                            teamB.didWin
+                          )
 
-                        teamB.totalPoints = totalBPoints
+                          teamB.totalPoints = totalBPoints
+                        }
                       }
 
                       // Add teams to match object
