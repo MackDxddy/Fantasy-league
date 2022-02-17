@@ -64,7 +64,7 @@ const calcKillAssistBns = async (
   assists: number,
   deaths: number
 ): Promise<number> => {
-  if (roundToTwo((kills + assists) / deaths) >= 10) {
+  if (roundToTwo((kills + assists) / Math.max(1, deaths)) >= 10) {
     return 2
   } else return 0
 }
@@ -83,8 +83,8 @@ const calcParticipationPts = async (
   teamTotalKills: number
 ): Promise<number> => {
   // return ((kills + assists) / Math.max(1, teamTotalKills)) * 100 * 0.25;
-  if (roundToTwo(((kills + assists) / teamTotalKills) * 100 * 0.25) <= 25) {
-    return roundToTwo(((kills + assists) / teamTotalKills) * 100 * 0.25)
+  if (roundToTwo(((kills + assists) / Math.max(1,teamTotalKills)) * 100 * 0.25) <= 25) {
+    return roundToTwo(((kills + assists) / Math.max(1,teamTotalKills)) * 100 * 0.25)
   } else return 0
 }
 
